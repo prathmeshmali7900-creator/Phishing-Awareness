@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Generation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <div class="grid grid-4" id="reportCards"></div>
+
+        <div class="card" style="margin-top:18px;">
+            <div class="card-header">
+                <h3><i class="bi bi-file-earmark-bar-graph me-2" style="color:#00ffb4"></i>Security Awareness Report</h3>
+                <div class="d-flex gap-2">
+                    <button class="btn-outline-cyber" onclick="exportPDF()"><i class="bi bi-file-earmark-pdf me-1"></i>Export PDF</button>
+                    <button class="btn-outline-cyber" onclick="exportCSV()"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
+                </div>
+            </div>
+            <div id="reportContent">
+                <div class="empty-state"><i class="bi bi-file-earmark-bar-graph"></i>Loading report...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/admin.js"></script>
+<script>
+    initSidebar('reports');
+    initTopbar();
+    setPageTitle('Report Generation','PDF & summary security reports');
+
+    let REPORT = null;
+
+    async function loadReport(){
+        REPORT = await apiFetch('/api/admin/reports');
+        renderCards(REPORT);
+        renderReport(REPORT);
+    }
+
+    function renderCards(r){
+        const cards = [
+            {icon:'green', bi:'bi-people', value:r.total_participants, label:'Total Participants'},
+            {icon:'blue', bi:'bi-arrow-right-circle', value:r.total_responses, label:'Total Responses'},
+            {icon:'orange', bi:'bi-exclamation-triangle', value:r.risk_pct+'%', label:'Risk Percentage'},
+            {icon:'purple', bi:'bi-graph-up', value:r.avg_awareness+'%', label:'Avg Awareness'},
+        ];
+        document.getElementById('reportCards').innerHTML = cards.map(c=>`
+            <div class="card stat-card">
+                <div class="icon ${c.icon}"><i class="bi ${c.bi}"></i></div>
+                <div class="value">${c.value}</div>
+                <div class="label">${c.label}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderReport(r){
+        document.getElementById('reportContent').innerHTML = `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+<h4 style="color:#FFFFFF">${esc(r.report_type)}</h4>
+                        <div class="text-muted small">Generated: ${esc(r.generated)}</div>
+                    </div>
+                    <span class="badge-risk status-active">Official Report</span>
+                </div>
+            </div>
+            <div class="grid grid-3 mb-4">
+                <div class="metric"><div class="label">Emails Opened</div><div class="value">${r.opened}</div></div>
+                <div class="metric"><div class="label">Links Clicked</div><div class="value">${r.clicked}</div></div>
+                <div class="metric"><div class="label">Reported</div><div class="value">${r.reported}</div></div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted small">Click Rate</span><strong>${r.click_rate}%</strong>
+                    </div>
+                    <div class="progress"><div class="progress-bar bg-warning" style="width:${r.click_rate}%"></div></div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted small">Report Rate</span><strong>${r.report_rate}%</strong>
+                    </div>
+                    <div class="progress"><div class="progress-bar bg-success" style="width:${r.report_rate}%"></div></div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <h5 style="color:#00ffb4">Recommendations</h5>
+                <ul class="list-unstyled">
+                    ${(r.recommendations||[]).map(rec=>`<li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:#2ed573"></i>${esc(rec)}</li>`).join('')}
+                </ul>
+            </div>
+            <div class="d-flex gap-3 flex-wrap">
+                <span class="badge-risk risk-low">Low Risk: ${r.low_risk_count}</span>
+                <span class="badge-risk risk-high">High Risk: ${r.high_risk_count}</span>
+            </div>
+        `;
+    }
+
+    function printWindow(){
+        const w = window.open('', '_blank');
+        w.document.write(`<html><head><title>Security Awareness Report</title>
+        <style>body{font-family:Arial;padding:30px;color:#222}h1{color:#0a6b4d}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ccc;padding:8px;text-align:left}li{margin:8px 0}</style></head>
+        <body><h1>${REPORT.report_type}</h1><p>Generated: ${REPORT.generated}</p>
+        <table><tr><th>Total Participants</th><td>${REPORT.total_participants}</td></tr>
+        <tr><th>Total Responses</th><td>${REPORT.total_responses}</td></tr>
+        <tr><th>Emails Opened</th><td>${REPORT.opened}</td></tr>
+        <tr><th>Links Clicked</th><td>${REPORT.clicked} (${REPORT.click_rate}%)</td></tr>
+        <tr><th>Reported</th><td>${REPORT.reported} (${REPORT.report_rate}%)</td></tr>
+        <tr><th>Avg Awareness</th><td>${REPORT.avg_awareness}%</td></tr>
+        <tr><th>Risk Percentage</th><td>${REPORT.risk_pct}%</td></tr></table>
+        <h2>Recommendations</h2><ul>${REPORT.recommendations.map(r=>`<li>${r}</li>`).join('')}</ul>
+        </body></html>`);
+        w.document.close();
+        w.focus();
+        w.print();
+    }
+
+    function exportPDF(){
+        if(!REPORT){ toast('Report not loaded','warning'); return; }
+        printWindow();
+    }
+
+    function exportCSV(){
+        if(!REPORT) return;
+        const rows = [
+            ['Metric','Value'],
+            ['Total Participants',REPORT.total_participants],
+            ['Total Responses',REPORT.total_responses],
+            ['Emails Opened',REPORT.opened],
+            ['Links Clicked',REPORT.clicked],
+            ['Reported',REPORT.reported],
+            ['Click Rate %',REPORT.click_rate],
+            ['Report Rate %',REPORT.report_rate],
+            ['Avg Awareness %',REPORT.avg_awareness],
+            ['Risk %',REPORT.risk_pct],
+        ];
+        const csv = rows.map(r=>r.join(',')).join('\n');
+        const blob = new Blob([csv], {type:'text/csv'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'security-awareness-report.csv';
+        a.click();
+    }
+
+    loadReport().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

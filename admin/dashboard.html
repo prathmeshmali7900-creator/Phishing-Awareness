@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <!-- Stat cards -->
+        <div class="grid grid-4" id="statCards"></div>
+
+        <!-- Charts row 1 -->
+        <div class="grid grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="bi bi-graph-up-arrow" style="color:#00ffb4"></i>User Awareness Trend</h3>
+                    <span class="badge-soft">Live</span>
+                </div>
+                <div class="chart-box"><canvas id="awarenessChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="bi bi-pie-chart" style="color:#00b4ff"></i>Risk Distribution</h3>
+                    <span class="badge-soft">Users</span>
+                </div>
+                <div class="chart-box"><canvas id="riskChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Charts row 2 -->
+        <div class="grid grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="bi bi-bullseye" style="color:#ffc048"></i>Phishing Simulation Stats</h3>
+                    <span class="badge-soft">Campaigns</span>
+                </div>
+                <div class="chart-box"><canvas id="simChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="bi bi-calendar-event" style="color:#ab66ff"></i>Monthly Activity</h3>
+                    <span class="badge-soft">Report</span>
+                </div>
+                <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Recent activities -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="bi bi-clock-history" style="color:#00b4ff"></i>Recent Activities</h3>
+            </div>
+            <div id="recentActivities"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="assets/js/admin.js"></script>
+<script>
+    initSidebar('dashboard');
+    initTopbar();
+    setPageTitle('Dashboard Overview','Security analytics & platform statistics');
+
+    const CHARTS = {};
+
+    async function loadOverview(){
+        const data = await apiFetch('/api/admin/overview');
+        renderStats(data);
+        renderCharts(data);
+        renderActivities(data.recent_activities || []);
+    }
+
+    function renderStats(d){
+        const cards = [
+            {icon:'green', bi:'bi-people', value:d.total_users, label:'Total Registered Users', trend:'+12% this month', up:true},
+            {icon:'blue', bi:'bi-bullseye', value:d.total_campaigns, label:'Total Campaigns', trend:d.total_campaigns+' active', up:true},
+            {icon:'purple', bi:'bi-envelope', value:d.total_emails, label:'Emails Sent', trend:'Simulated', up:true},
+            {icon:'orange', bi:'bi-arrow-right-circle', value:d.total_responses, label:'Responses Received', trend:'Tracked', up:true},
+            {icon:'green', bi:'bi-graph-up', value:d.awareness_percentage+'%', label:'Overall Awareness', trend:'Above target', up:true},
+            {icon:'red', bi:'bi-exclamation-triangle', value:d.high_risk_users, label:'High-Risk Users', trend:'Needs attention', up:false},
+        ];
+document.getElementById('statCards').innerHTML = cards.map(c=>`
+            <div class="card stat-card">
+                <div class="icon ${c.icon}"><i class="bi ${c.bi}"></i></div>
+                <div class="value">${c.value}</div>
+                <div class="label">${c.label}</div>
+                <div class="trend ${c.up?'up':'down'}"><i class="bi ${c.up?'bi-arrow-up-right':'bi-arrow-down-right'}"></i>${c.trend}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderCharts(d){
+        // Awareness trend
+        const adv = (d.awareness_trend||[]).map(x=>x.date);
+        const adv2 = (d.awareness_trend||[]).map(x=>x.score);
+        CHARTS.awareness = new Chart(document.getElementById('awarenessChart'), {
+            type:'line',
+            data:{labels:adv, datasets:[{
+                label:'Avg Awareness Score', data:adv2,
+                borderColor:'#00ffb4', backgroundColor:'rgba(0,255,180,.15)',
+                fill:true, tension:.4, pointBackgroundColor:'#00ffb4', pointRadius:4
+            }]},
+            options:chartBase('Awareness %')
+        });
+
+        // Risk distribution
+        const rd = d.risk_distribution||{};
+        CHARTS.risk = new Chart(document.getElementById('riskChart'), {
+            type:'doughnut',
+            data:{labels:['Low Risk','Medium Risk','High Risk'], datasets:[{
+                data:[rd.low,rd.medium,rd.high],
+                backgroundColor:['#2ed573','#ffc048','#ff6b6b'],
+                borderColor:'#131c2d', borderWidth:3
+            }]},
+            options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{color:'#8aa0b6'}}}}
+        });
+
+        // Simulation stats
+        const ss = d.simulation_stats||{};
+        CHARTS.sim = new Chart(document.getElementById('simChart'), {
+            type:'bar',
+            data:{labels:['Emails Opened','Links Clicked','Reported'], datasets:[{
+                label:'Count', data:[ss.opened,ss.clicked,ss.reported],
+                backgroundColor:['#00b4ff','#ffc048','#2ed573'],
+                borderRadius:8
+            }]},
+            options:chartBase('Responses')
+        });
+
+        // Monthly activity
+        const mv = (d.monthly_activity||[]).map(x=>x.month);
+        const mc = (d.monthly_activity||[]).map(x=>x.count);
+        CHARTS.monthly = new Chart(document.getElementById('monthlyChart'), {
+            type:'bar',
+            data:{labels:mv, datasets:[{
+                label:'Activity', data:mc,
+                backgroundColor:'rgba(171,102,255,.6)', borderColor:'#ab66ff', borderWidth:2, borderRadius:8
+            }]},
+            options:chartBase('Events')
+        });
+    }
+
+    function chartBase(ytext){
+        return {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{labels:{color:'#8aa0b6'}}},
+            scales:{
+                x:{ticks:{color:'#8aa0b6'}, grid:{color:'rgba(30,45,68,.4)'}},
+                y:{ticks:{color:'#8aa0b6'}, grid:{color:'rgba(30,45,68,.4)'}, title:{display:true,text:ytext,color:'#8aa0b6'}}
+            }
+        };
+    }
+
+    function renderActivities(acts){
+        const colors = {email_opened:'#00b4ff', link_clicked:'#ffc048', reported:'#2ed573', page_visited:'#ab66ff', quiz_completed:'#00ffb4'};
+        const labels = {email_opened:'Emailed opened', link_clicked:'Link clicked', reported:'Reported phishing', page_visited:'Simulation page visited', quiz_completed:'Quiz completed'};
+        const el = document.getElementById('recentActivities');
+        if(!acts.length){ el.innerHTML = `<div class="empty-state"><i class="bi bi-inbox"></i>No recent activity</div>`; return; }
+        el.innerHTML = acts.map(a=>`
+            <div class="activity-item">
+                <span class="activity-dot" style="background:${colors[a.action]||'#3a4b66'}"></span>
+                <div>
+                    <div><strong>${labels[a.action]||a.action}</strong></div>
+                    <div class="activity-time">${a.timestamp}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    loadOverview().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

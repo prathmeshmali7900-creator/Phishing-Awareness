@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/user.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+<!-- Welcome -->
+        <div class="card mb-4" style="background:linear-gradient(135deg,#0f1a28,#0c1422);border:1px solid var(--border);color:var(--text);">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h4 style="color:var(--text-heading)" id="welcomeMsg">Welcome!</h4>
+                    <p class="mb-0 text-muted">Track your security awareness journey and become phishing-resistant.</p>
+                </div>
+                <button class="btn-primary" onclick="location.href='simulations.html'">
+                    <i class="bi bi-envelope-at me-1"></i>Start Simulation
+                </button>
+            </div>
+        </div>
+
+<div class="grid grid-4" id="statCards"></div>
+
+        <!-- Certification Card -->
+        <div class="card cert-card" id="certCard" style="margin-top:18px;">
+            <div class="d-flex flex-wrap align-items-center" style="gap:20px;">
+                <div class="cert-icon">
+                    <i class="bi bi-trophy-fill" id="certIcon"></i>
+                </div>
+                <div class="flex-grow-1" style="min-width:0;">
+                    <h4 class="mb-1 cert-title" id="certTitle">Cyber Security Awareness Certificate</h4>
+                    <p class="mb-0 cert-subtitle" id="certSubtitle">Complete all required tasks to unlock your certificate.</p>
+                    <div id="certDetails" class="cert-details"></div>
+                </div>
+                <div class="cert-action">
+                    <button class="btn-primary cert-download-btn" id="certDownloadBtn" onclick="downloadCertificate()" disabled>
+                        <i class="bi bi-download me-1"></i>Download Certificate
+                    </button>
+                </div>
+            </div>
+            <div class="cert-progress-wrap" id="certProgressWrap">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                    <span><i class="bi bi-lock-fill me-1"></i>Complete all required tasks to unlock your certificate</span>
+                    <span id="certProgressLabel" style="color:var(--primary)">0%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" id="certProgressBar" style="width:0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-top:18px;">
+            <div class="card">
+                <div class="card-header">
+<h3><i class="bi bi-shield-check me-2" style="color:var(--primary)"></i>Personal Awareness Score</h3>
+                </div>
+                <div id="scoreRing"></div>
+                <div class="text-center mt-3">
+                    <span id="riskBadge"></span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="bi bi-bell me-2" style="color:var(--warning)"></i>Security Notifications</h3>
+                </div>
+                <div id="notifications"></div>
+            </div>
+        </div>
+
+<div class="card" id="securityTips" style="margin-top:18px;scroll-margin-top:90px;">
+            <div class="card-header">
+<h3 id="tipsHeading"><i class="bi bi-lightbulb me-2" style="color:var(--purple)"></i>Security Tips</h3>
+            </div>
+            <div class="row g-3" id="tipsRow">
+                <div class="col-md-4">
+                    <div class="tip-card" data-tip="hover" onclick="toggleTip(this)">
+                        <div class="tip-head">
+                            <div class="lesson-icon"><i class="bi bi-link-45deg"></i></div>
+                            <div><strong>Hover before you click</strong></div>
+                            <i class="bi bi-chevron-down tip-chevron"></i>
+                        </div>
+                        <div class="tip-body">
+                            <p>Always hover over a link to reveal the true destination URL before you click.</p>
+                            <p class="tip-detail">⚠️ Look for misspelled domains, excessive subdomains, or links that don't match the sender's company.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="tip-card" data-tip="mfa" onclick="toggleTip(this)">
+                        <div class="tip-head">
+                            <div class="lesson-icon"><i class="bi bi-shield-lock"></i></div>
+                            <div><strong>Enable MFA</strong></div>
+                            <i class="bi bi-chevron-down tip-chevron"></i>
+                        </div>
+                        <div class="tip-body">
+                            <p>Multi-factor authentication blocks most account takeover attempts.</p>
+                            <p class="tip-detail">🔐 Use an authenticator app over SMS codes whenever possible.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="tip-card" data-tip="report" onclick="toggleTip(this)">
+                        <div class="tip-head">
+                            <div class="lesson-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                            <div><strong>Report suspicions</strong></div>
+                            <i class="bi bi-chevron-down tip-chevron"></i>
+                        </div>
+                        <div class="tip-body">
+                            <p>Report any unusual, urgent, or unexpected email immediately.</p>
+                            <p class="tip-detail">🚨 Use the report button in your mailbox or contact the security team right away.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="assets/js/user.js"></script>
+<script>
+initSidebar('dashboard');
+    initTopbar();
+    setPageTitle('User Dashboard','Your personal security overview');
+
+    // ---- Security Tips: expand/collapse + smooth scroll + highlight ----
+    function toggleTip(card){
+        const isActive = card.classList.contains('active');
+        // Remove active state from all tips
+        document.querySelectorAll('.tip-card').forEach(t=>t.classList.remove('active'));
+        if(!isActive){
+            card.classList.add('active');
+            // Smoothly scroll the whole tips section into view (offset for topbar)
+            const section = document.getElementById('securityTips');
+            section.scrollIntoView({behavior:'smooth', block:'start'});
+        }
+    }
+
+// Remove highlight + collapse when clicking anywhere outside the tips section
+    document.addEventListener('click', function(e){
+        const section = document.getElementById('securityTips');
+        if(section && !section.contains(e.target)){
+            document.querySelectorAll('.tip-card').forEach(t=>t.classList.remove('active'));
+        }
+    });
+
+    // Open a specific tip card from a notification link
+    function openTipFromNotif(key){
+        const card = document.querySelector(`.tip-card[data-tip="${key}"]`);
+        if(!card) return;
+        document.querySelectorAll('.tip-card').forEach(t=>t.classList.remove('active'));
+        card.classList.add('active');
+        const section = document.getElementById('securityTips');
+        section.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    async function loadDashboard(){
+        const d = await apiFetch('/api/user/dashboard');
+        const user = d.user;
+
+document.getElementById('welcomeMsg').innerHTML = `Welcome, <span style="color:var(--primary2)">${esc(user.name)}</span>!`;
+
+        const cards = [
+            {icon:'blue', bi:'bi-envelope-at', value:d.total_simulations, label:'Total Simulations'},
+            {icon:'purple', bi:'bi-trophy', value:d.quiz_score+'%', label:'Awareness Score'},
+            {icon: user.security_level==='Low'?'green':(user.security_level==='High'?'red':'orange'), bi:'bi-shield', value:user.risk_level, label:'Security Level'},
+            {icon:'cyan', bi:'bi-journal-check', value:d.pending_simulations, label:'Pending Simulations'},
+        ];
+        document.getElementById('statCards').innerHTML = cards.map(c=>`
+            <div class="card stat-card">
+                <div class="icon ${c.icon}"><i class="bi ${c.bi}"></i></div>
+                <div class="value" style="font-size:${c.value.length>8?'1.2rem':'1.8rem'}">${c.value}</div>
+                <div class="label">${c.label}</div>
+            </div>
+        `).join('');
+
+const color = user.risk_level==='Low' ? '#2ed573' : (user.risk_level==='High' ? '#ff6b6b' : '#ffc048');
+        scoreRing('#scoreRing', user.awareness_score, color);
+        document.getElementById('riskBadge').innerHTML = riskBadge(user.risk_level);
+
+if(d.certification) renderCertification(Object.assign({user_name:user.name}, d.certification));
+
+        const notes = d.notifications||[];
+        const notifEl = document.getElementById('notifications');
+        const icons = {training:'bi-book', simulation:'bi-envelope-at', tip:'bi-lightbulb', alert:'bi-exclamation-triangle'};
+        if(!notes.length){ notifEl.innerHTML = `<div class="text-muted small p-3">No notifications</div>`; }
+else{
+            // Map notification titles to tip cards for cross-navigation
+            const tipKeys = {
+                'hover': 'hover', 'link': 'hover', 'url': 'hover', 'click': 'hover',
+                'mfa': 'mfa', 'multi-factor': 'mfa', 'authentication': 'mfa',
+                'report': 'report', 'phishing': 'report', 'suspicious': 'report'
+            };
+            notifEl.innerHTML = notes.map(n=>{
+                const title = (n.title||'').toLowerCase();
+                const tipKey = (n.type==='tip' && n.key) ? n.key : null;
+                const matched = Object.keys(tipKeys).find(k=>title.includes(k));
+                const isTip = n.type==='tip' || matched;
+                const dataTip = isTip ? (tipKey || tipKeys[matched] || '') : '';
+                return `
+                <div class="notif-item${isTip&&dataTip?' notif-tip-link':''}" ${isTip&&dataTip?`data-tip="${esc(dataTip)}" onclick="openTipFromNotif('${esc(dataTip)}')"`:''}>
+                    <div class="notif-icon notif-type ${n.type||'tip'}"><i class="bi ${icons[n.type]||'bi-bell'}"></i></div>
+                    <div>
+                        <strong>${esc(n.title)}</strong>
+                        <div class="text-muted small">${esc(n.message)}</div>
+                        <div class="text-muted" style="font-size:.68rem;margin-top:4px;">${n.created_at}</div>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+    }
+
+async function renderCertification(cert){
+        const card = document.getElementById('certCard');
+        const icon = document.getElementById('certIcon');
+        const title = document.getElementById('certTitle');
+        const subtitle = document.getElementById('certSubtitle');
+        const details = document.getElementById('certDetails');
+        const btn = document.getElementById('certDownloadBtn');
+        const progressWrap = document.getElementById('certProgressWrap');
+        const progressLabel = document.getElementById('certProgressLabel');
+        const progressBar = document.getElementById('certProgressBar');
+
+        const pct = cert.progress_percent || 0;
+        progressLabel.textContent = pct + '%';
+        progressBar.style.width = pct + '%';
+
+        if(cert.all_requirements_met){
+            // Unlocked state
+            card.classList.remove('locked');
+            card.classList.add('unlocked');
+            icon.className = 'bi bi-patch-check-fill';
+            icon.style.color = 'var(--primary)';
+            title.innerHTML = '🎓 ' + esc(cert.title || 'Cyber Security Awareness Certificate');
+            subtitle.innerHTML = '<span style="color:var(--success)"><i class="bi bi-check-circle-fill me-1"></i>Congratulations! You have successfully completed all required tasks.</span>';
+            const name = localStorage.getItem('name') || esc(cert.user_name || 'Learner');
+            const date = cert.completion_date ? formatDate(cert.completion_date) : '—';
+            details.innerHTML = `
+                <div class="cert-meta">
+                    <span><i class="bi bi-person-fill me-1"></i><strong>${esc(name)}</strong></span>
+                    <span><i class="bi bi-calendar-check me-1"></i>${date}</span>
+                </div>
+            `;
+            progressWrap.style.display = 'none';
+            btn.disabled = false;
+            btn.classList.add('unlocked');
+            window._certData = cert;
+        } else {
+            // Locked state
+            card.classList.add('locked');
+            card.classList.remove('unlocked');
+            icon.className = 'bi bi-trophy-fill';
+            icon.style.color = 'var(--text2)';
+            title.innerHTML = '🔒 Cyber Security Awareness Certificate';
+            subtitle.textContent = 'Complete all required tasks to unlock your certificate.';
+
+            // detailed progress checklist
+            const checks = [
+                {label:'All Simulations Completed', done: cert.all_simulations_done},
+                {label:'All Training Modules Completed', done: cert.all_training_done},
+                {label:'Quiz Completed (Passing Score 80%+)', done: cert.quiz_passed, val: cert.quiz_score},
+                {label:'Awareness Score 80%+', done: cert.awareness_ready, val: cert.awareness_score},
+            ];
+            details.innerHTML = `<div class="cert-checks">` + checks.map(c=>`
+                <div class="cert-check ${c.done?'done':''}">
+                    <i class="bi ${c.done?'bi-check-circle-fill':'bi-circle'}"></i>
+                    <span>${c.label}</span>
+                    ${c.val!==undefined ? `<em>${c.val}%</em>` : ''}
+                </div>
+            `).join('') + `</div>`;
+            progressWrap.style.display = 'block';
+            btn.disabled = true;
+            btn.classList.remove('unlocked');
+        }
+    }
+
+    function formatDate(s){
+        if(!s) return 'N/A';
+        try{
+            const d = new Date(s.replace(' ','T'));
+            return d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+        }catch(e){ return s; }
+    }
+
+    async function downloadCertificate(){
+        const btn = document.getElementById('certDownloadBtn');
+        if(btn.disabled){ toast('Complete all tasks to unlock your certificate','warning'); return; }
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Generating...';
+        try{
+            let cert = window._certData;
+            if(!cert || !cert.certificate_id){
+                cert = await apiFetch('/api/user/certificate');
+            }
+            const user = await apiFetch('/api/auth/me');
+            const name = user.name || 'Learner';
+            const date = formatDate(cert.issued_at || cert.completion_date || new Date().toString());
+            const certId = cert.certificate_id;
+
+            const { jsPDF } = window.jspdf;
+            const width = 842, height = 595; // landscape A4 @96dpi
+            const doc = new jsPDF({orientation:'landscape', unit:'pt', format:'a4'});
+
+            // Background
+            doc.setFillColor(10, 14, 26); doc.rect(0, 0, width, height, 'F');
+            // Decorative border
+            doc.setDrawColor(0, 255, 180); doc.setLineWidth(3);
+            doc.rect(28, 28, width-56, height-56);
+            doc.setDrawColor(0, 180, 255); doc.setLineWidth(1);
+            doc.rect(36, 36, width-72, height-72);
+
+// Platform logo / seal (vector shield, no emoji for font safety)
+            doc.setFillColor(0, 255, 180);
+            doc.circle(width/2, 100, 34, 'F');
+            doc.setFillColor(10, 14, 26);
+            doc.circle(width/2, 100, 26, 'F');
+            // Draw a simple shield glyph using lines
+            doc.setDrawColor(0, 255, 180);
+            doc.setLineWidth(2.5);
+            const sx = width/2, sy = 100;
+            doc.line(sx-12, sy-10, sx, sy-18);
+            doc.line(sx+12, sy-10, sx, sy-18);
+            doc.line(sx-12, sy-10, sx-12, sy+4);
+            doc.line(sx+12, sy-10, sx+12, sy+4);
+            doc.line(sx-12, sy+4, sx, sy+14);
+            doc.line(sx+12, sy+4, sx, sy+14);
+            doc.setFillColor(0, 255, 180);
+            doc.triangle(sx-8, sy-6, sx+8, sy-6, sx, sy+6, 'F');
+
+            // Platform name
+            doc.setTextColor(0, 255, 180);
+            doc.setFont('helvetica','bold'); doc.setFontSize(20);
+            doc.text('CyberSec Learn', width/2, 158, {align:'center'});
+            doc.setFont('helvetica','normal'); doc.setFontSize(11);
+            doc.setTextColor(0, 180, 255);
+            doc.text('Cyber Security Awareness & Phishing Training Platform', width/2, 176, {align:'center'});
+
+            // Title
+            doc.setTextColor(255,255,255);
+            doc.setFont('helvetica','bold'); doc.setFontSize(30);
+            doc.text('Certificate of Completion', width/2, 235, {align:'center'});
+
+            // Divider
+            doc.setDrawColor(0, 255, 180); doc.setLineWidth(1.5);
+            doc.line(width/2-120, 255, width/2+120, 255);
+
+            // Body
+            doc.setFont('helvetica','normal'); doc.setFontSize(14);
+            doc.setTextColor(200,210,220);
+            doc.text('This is to certify that', width/2, 300, {align:'center'});
+
+            // User name
+            doc.setFont('helvetica','bold'); doc.setFontSize(44);
+            doc.setTextColor(0, 255, 180);
+            doc.text(name, width/2, 350, {align:'center'});
+
+            doc.setFont('helvetica','normal'); doc.setFontSize(14);
+            doc.setTextColor(200,210,220);
+            const body = 'has successfully completed the Cyber Security Awareness program,\nincluding all phishing simulations, training modules, and the final assessment.';
+            doc.text(body, width/2, 385, {align:'center', maxWidth:600});
+
+            // Completion date
+            doc.setFont('helvetica','normal'); doc.setFontSize(13);
+            doc.setTextColor(180,190,205);
+            doc.text('Date of Completion: ' + date, width/2, 425, {align:'center'});
+
+            // Signature placeholder
+            doc.setDrawColor(200,210,220); doc.setLineWidth(1);
+            doc.line(120, 490, 300, 490);
+            doc.setFont('helvetica','normal'); doc.setFontSize(11);
+            doc.setTextColor(180,190,205);
+            doc.text('Security Administrator', 210, 505, {align:'center'});
+
+            // Official seal
+            doc.setDrawColor(0, 255, 180); doc.setLineWidth(3);
+            doc.circle(width-170, 470, 45);
+            doc.setLineWidth(1); doc.setDrawColor(0,180,255);
+            doc.circle(width-170, 470, 38);
+            doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,255,180);
+            doc.text('OFFICIAL', width-170, 465, {align:'center'});
+            doc.setFontSize(8);
+            doc.text('SEAL', width-170, 478, {align:'center'});
+
+            // Certificate ID
+            doc.setFont('courier','bold'); doc.setFontSize(11);
+            doc.setTextColor(0, 180, 255);
+            doc.text('Certificate ID: ' + certId, width/2, 545, {align:'center'});
+
+            doc.save('CyberSecurity_Certificate_' + name.replace(/\s+/g,'_') + '.pdf');
+            toast('Certificate downloaded successfully! 🎓','success');
+        }catch(e){
+            toast(e.message || 'Failed to generate certificate','danger');
+        }finally{
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-download me-1"></i>Download Certificate';
+        }
+    }
+
+    loadDashboard().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

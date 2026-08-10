@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <div class="card">
+            <div class="card-header flex-wrap gap-2">
+                <h3><i class="bi bi-patch-question me-2" style="color:#ab66ff"></i>Quiz Questions</h3>
+                <div class="card-header-actions">
+                    <button class="btn-cyber" data-bs-toggle="modal" data-bs-target="#quizModal" onclick="openAddQuiz()">
+                        <i class="bi bi-plus-lg me-1"></i>Add Question
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search & Filters -->
+            <div class="filter-bar">
+                <div class="search-wrap">
+                    <i class="bi bi-search"></i>
+                    <input class="form-control" id="quizSearch" placeholder="Search questions..." oninput="applyFilters()">
+                </div>
+                <select class="form-select" id="filterCategory" onchange="applyFilters()">
+                    <option value="">All Categories</option>
+                </select>
+                <select class="form-select" id="filterDifficulty" onchange="applyFilters()">
+                    <option value="">All Difficulties</option>
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                </select>
+                <select class="form-select" id="filterStatus" onchange="applyFilters()">
+                    <option value="">All Status</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+            </div>
+
+            <div class="table-wrap">
+                <table class="table align-middle" id="quizzesTable">
+                    <thead>
+                        <tr>
+                            <th style="width:30%">Question</th>
+                            <th>Option A</th>
+                            <th>Option B</th>
+                            <th>Option C</th>
+                            <th>Option D</th>
+                            <th>Correct</th>
+                            <th>Category</th>
+                            <th>Difficulty</th>
+                            <th>Status</th>
+                            <th class="cell-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+                <div class="text-muted small" id="pageInfo">Showing 0 questions</div>
+                <nav>
+                    <ul class="pagination mb-0" id="pagination"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Modal -->
+<div class="modal fade" id="quizModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quizModalTitle">Add Question</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="quizId">
+                <div class="mb-3">
+                    <label class="form-label">Question Text <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="qQuestion" rows="2" placeholder="Enter the question..."></textarea>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Option A <span class="text-danger">*</span></label>
+                        <input class="form-control" id="qOptionA" placeholder="Option A">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Option B <span class="text-danger">*</span></label>
+                        <input class="form-control" id="qOptionB" placeholder="Option B">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Option C <span class="text-danger">*</span></label>
+                        <input class="form-control" id="qOptionC" placeholder="Option C">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Option D <span class="text-danger">*</span></label>
+                        <input class="form-control" id="qOptionD" placeholder="Option D">
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Correct Answer <span class="text-danger">*</span></label>
+                        <select class="form-select" id="qCorrect">
+                            <option value="0">Option A</option>
+                            <option value="1">Option B</option>
+                            <option value="2">Option C</option>
+                            <option value="3">Option D</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Category</label>
+                        <input class="form-control" id="qCategory" placeholder="e.g. Email Analysis">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Difficulty</label>
+                        <select class="form-select" id="qDifficulty">
+                            <option value="Easy">Easy</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Explanation (optional)</label>
+                    <textarea class="form-control" id="qExplanation" rows="2" placeholder="Explain why this is the correct answer..."></textarea>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="qActive" checked>
+                    <label class="form-check-label" for="qActive">Active</label>
+                    <small class="text-muted d-block">Inactive questions won't appear in the user quiz.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline-cyber" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn-cyber" onclick="saveQuiz()"><i class="bi bi-check-circle me-1"></i>Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/admin.js"></script>
+<script>
+    initSidebar('quizzes');
+    initTopbar();
+    setPageTitle('Quiz Management','Create and manage phishing detection questions');
+
+    let allQuizzes = [];
+    let filteredQuizzes = [];
+    let currentPage = 1;
+    const perPage = 8;
+
+    const CATEGORY_MAP = {
+        'email_analysis':'Email Analysis', 'scenario':'Scenario', 'url_detection':'URL Detection',
+        'social_engineering':'Social Engineering', 'mfa':'MFA', 'detection':'Detection', 'phishing':'Phishing'
+    };
+
+    async function loadQuizzes(){
+        allQuizzes = await apiFetch('/api/admin/quizzes');
+        // Normalize legacy categories
+        allQuizzes.forEach(q=>{ q.category = CATEGORY_MAP[q.category] || q.category || 'General'; });
+        populateCategoryFilter();
+        applyFilters();
+    }
+
+    function populateCategoryFilter(){
+        const cats = [...new Set(allQuizzes.map(q=>q.category).filter(Boolean))].sort();
+        const sel = document.getElementById('filterCategory');
+        sel.innerHTML = '<option value="">All Categories</option>' + cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    }
+
+    function applyFilters(){
+        const search = document.getElementById('quizSearch').value.toLowerCase().trim();
+        const cat = document.getElementById('filterCategory').value;
+        const diff = document.getElementById('filterDifficulty').value;
+        const status = document.getElementById('filterStatus').value;
+
+        filteredQuizzes = allQuizzes.filter(q=>{
+            const matchSearch = !search || q.question.toLowerCase().includes(search);
+            const matchCat = !cat || q.category === cat;
+            const matchDiff = !diff || q.difficulty === diff;
+            const matchStatus = status==='' || String(q.active) === status;
+            return matchSearch && matchCat && matchDiff && matchStatus;
+        });
+
+        currentPage = 1;
+        renderTable();
+    }
+
+    function renderTable(){
+        const total = filteredQuizzes.length;
+        const totalPages = Math.max(1, Math.ceil(total/perPage));
+        if(currentPage > totalPages) currentPage = totalPages;
+        const start = (currentPage-1)*perPage;
+        const pageItems = filteredQuizzes.slice(start, start+perPage);
+
+        const tbody = document.querySelector('#quizzesTable tbody');
+        if(!pageItems.length){
+            tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><i class="bi bi-patch-question"></i>No questions found.</div></td></tr>`;
+        }else{
+            tbody.innerHTML = pageItems.map(q=>{
+                const opts = JSON.parse(q.options || '[]');
+                const correctLetter = String.fromCharCode(65 + (q.correct_index||0));
+                const diffClass = q.difficulty==='Easy'?'diff-easy':(q.difficulty==='Hard'?'diff-hard':'diff-medium');
+                return `
+                <tr>
+<td><div class="cell-ellipsis" style="max-width:260px;color:#FFFFFF;font-weight:600" title="${esc(q.question)}">${esc(q.question)}</div></td>
+                    <td class="small">${esc(opts[0]||'—')}</td>
+                    <td class="small">${esc(opts[1]||'—')}</td>
+                    <td class="small">${esc(opts[2]||'—')}</td>
+                    <td class="small">${esc(opts[3]||'—')}</td>
+                    <td><span class="badge-risk status-active">${correctLetter}</span></td>
+                    <td><span class="badge-risk status-scheduled">${esc(q.category)}</span></td>
+                    <td><span class="badge-diff ${diffClass}">${esc(q.difficulty)}</span></td>
+                    <td>${q.active ? '<span class="badge-risk status-active">Active</span>' : '<span class="badge-risk status-inactive">Inactive</span>'}</td>
+                    <td>
+                        <div class="action-group">
+                            <button class="btn-icon edit" onclick='openEditQuiz(${JSON.stringify(q).replace(/'/g,"\\'")})' title="Edit"><i class="bi bi-pencil"></i></button>
+                            <button class="btn-icon del" onclick="deleteQuiz(${q.question_id})" title="Delete"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        document.getElementById('pageInfo').textContent = `Showing ${pageItems.length} of ${total} questions`;
+        renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages){
+        const ul = document.getElementById('pagination');
+        let html = `
+            <li class="page-item ${currentPage===1?'disabled':''}">
+                <button class="page-link" onclick="goPage(${currentPage-1})"><i class="bi bi-chevron-left"></i></button>
+            </li>`;
+        for(let i=1;i<=totalPages;i++){
+            html += `<li class="page-item ${i===currentPage?'active':''}">
+                <button class="page-link" onclick="goPage(${i})">${i}</button></li>`;
+        }
+        html += `
+            <li class="page-item ${currentPage===totalPages?'disabled':''}">
+                <button class="page-link" onclick="goPage(${currentPage+1})"><i class="bi bi-chevron-right"></i></button>
+            </li>`;
+        ul.innerHTML = html;
+    }
+
+    function goPage(p){
+        const totalPages = Math.max(1, Math.ceil(filteredQuizzes.length/perPage));
+        if(p < 1 || p > totalPages) return;
+        currentPage = p;
+        renderTable();
+    }
+
+    function openAddQuiz(){
+        document.getElementById('quizModalTitle').textContent = 'Add Question';
+        document.getElementById('quizId').value = '';
+        ['qQuestion','qOptionA','qOptionB','qOptionC','qOptionD','qCategory','qExplanation'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('qCorrect').value = 1;
+        document.getElementById('qDifficulty').value = 'Medium';
+        document.getElementById('qActive').checked = true;
+    }
+
+    function openEditQuiz(q){
+        document.getElementById('quizModalTitle').textContent = 'Edit Question';
+        document.getElementById('quizId').value = q.question_id;
+        document.getElementById('qQuestion').value = q.question;
+        const opts = JSON.parse(q.options || '[]');
+        document.getElementById('qOptionA').value = opts[0]||'';
+        document.getElementById('qOptionB').value = opts[1]||'';
+        document.getElementById('qOptionC').value = opts[2]||'';
+        document.getElementById('qOptionD').value = opts[3]||'';
+        document.getElementById('qCorrect').value = q.correct_index;
+        document.getElementById('qCategory').value = q.category||'';
+        document.getElementById('qDifficulty').value = q.difficulty||'Medium';
+        document.getElementById('qExplanation').value = q.explanation||'';
+        document.getElementById('qActive').checked = !!q.active;
+        var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('quizModal'));
+        m.show();
+    }
+
+    async function saveQuiz(){
+        const question = document.getElementById('qQuestion').value.trim();
+        const options = [
+            document.getElementById('qOptionA').value.trim(),
+            document.getElementById('qOptionB').value.trim(),
+            document.getElementById('qOptionC').value.trim(),
+            document.getElementById('qOptionD').value.trim(),
+        ];
+        const correct_index = parseInt(document.getElementById('qCorrect').value);
+        const category = document.getElementById('qCategory').value.trim();
+        const difficulty = document.getElementById('qDifficulty').value;
+        const explanation = document.getElementById('qExplanation').value.trim();
+        const active = document.getElementById('qActive').checked;
+        const id = document.getElementById('quizId').value;
+
+        // Validation
+        if(!question){ toast('Question text is required','warning'); return; }
+        if(options.some(o=>!o)){ toast('All four options are required','warning'); return; }
+        if(new Set(options).size !== 4){ toast('Options must be unique','warning'); return; }
+
+        const payload = {question, options, correct_index, category, difficulty, explanation, active};
+        try{
+            if(id){
+                await apiFetch('/api/admin/quizzes/'+id, {method:'PUT', body:JSON.stringify(payload)});
+                toast('Question updated');
+            }else{
+                await apiFetch('/api/admin/quizzes', {method:'POST', body:JSON.stringify(payload)});
+                toast('Question added');
+            }
+            bootstrap.Modal.getInstance(document.getElementById('quizModal')).hide();
+            loadQuizzes();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    async function deleteQuiz(id){
+        if(!confirm('Delete this question permanently?')) return;
+        try{
+            await apiFetch('/api/admin/quizzes/'+id, {method:'DELETE'});
+            toast('Question deleted');
+            loadQuizzes();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    loadQuizzes().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>
+</content>

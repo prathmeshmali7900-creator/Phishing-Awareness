@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Simulations</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/user.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+<div class="card mb-4" style="background:linear-gradient(135deg,#0f1a28,#0c1422);border:1px solid var(--border);color:var(--text);">
+            <h4><i class="bi bi-shield-exclamation me-2" style="color:var(--primary2)"></i>Phishing Simulation Mailbox</h4>
+            <p class="mb-0 text-muted small">
+                Analyze each simulated email and decide if it's phishing. 
+                <strong>Important:</strong> This is a simulation — no real passwords or sensitive data will ever be collected. Only your click behavior and responses are recorded.
+            </p>
+        </div>
+
+        <div class="grid grid-2" id="simList"></div>
+    </div>
+</div>
+
+<!-- Email modal -->
+<div class="modal fade" id="emailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+<div class="modal-content" style="border-radius:16px;border:1px solid var(--border);">
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailSubject"></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center small text-muted mb-3">
+                    <span>From: <strong id="emailFrom" style="color:var(--danger)"></strong></span>
+                    <span id="emailCampaign"></span>
+                </div>
+                <div id="emailContent" class="p-3" style="background:rgba(10,20,35,.5);border:1px solid var(--border);border-radius:10px;line-height:1.7;"></div>
+                <hr>
+                <div class="mb-3">
+                    <div class="fw-bold mb-2">Is this a phishing email?</div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn-outline-cyber" style="border-color:#2ed573;color:#2ed573;" onclick="reportPhish()"><i class="bi bi-flag me-1"></i>Report as Phishing</button>
+                        <button class="btn-outline-cyber" style="border-color:#ff6b6b;color:#ff6b6b;" onclick="simulateClick()"><i class="bi bi-cursor me-1"></i>Looks Legitimate (Click Link)</button>
+                    </div>
+                </div>
+                <div id="feedback" class="p-3 d-none" style="border-radius:10px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/user.js"></script>
+<script>
+    initSidebar('simulations');
+    initTopbar();
+    setPageTitle('Phishing Simulations','Analyze simulated phishing emails');
+
+    let CURRENT = null;
+
+    async function loadSimulations(){
+        const data = await apiFetch('/api/user/simulations');
+        const list = document.getElementById('simList');
+        if(!data.length){
+list.innerHTML = `<div class="empty-state" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);"><i class="bi bi-inbox" style="font-size:3rem;display:block;margin-bottom:12px"></i>No active simulations. Check back soon!</div>`;
+            return;
+        }
+        list.innerHTML = data.map(item=>{
+            const c = item.campaign;
+            const done = item.response;
+            return `
+                <div class="card email-card ${done?'':''}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="email-from"><i class="bi bi-envelope me-1"></i>${esc(c.title)}</div>
+                            <div class="email-subject">${esc(c.description||c.title)}</div>
+                            <div class="text-muted small mt-1">Scenario: ${esc(c.scenario||'—')}</div>
+                        </div>
+                        ${done ? '<span class="badge-risk risk-low">Completed</span>' : '<span class="badge-risk risk-high">Pending</span>'}
+                    </div>
+                    <div class="mt-3 d-flex gap-2">
+                        ${done ? `<button class="btn-outline" onclick="openEmail(${c.campaign_id})"><i class="bi bi-eye"></i> Review</button>`
+                               : `<button class="btn-primary" onclick="openEmail(${c.campaign_id})"><i class="bi bi-envelope-open"></i> Analyze Email</button>`}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function openEmail(campaignId){
+        document.getElementById('emailModal').addEventListener('shown.bs.modal', function listener(){
+            this.removeEventListener('shown.bs.modal', listener);
+            // record email opened
+            apiFetch('/api/user/simulations/'+campaignId+'/action', {method:'POST', body:JSON.stringify({action:'email_opened'})}).catch(()=>{});
+        });
+        const data = await apiFetch('/api/user/simulations');
+        const item = data.find(x=>x.campaign.campaign_id===campaignId);
+        if(!item) return;
+        CURRENT = item;
+        const temp = await getTemplate(item.campaign.template_id);
+        document.getElementById('emailSubject').textContent = temp ? temp.subject : item.campaign.title;
+        document.getElementById('emailFrom').textContent = temp ? temp.sender : 'unknown@example.com';
+        document.getElementById('emailCampaign').textContent = item.campaign.title;
+        document.getElementById('emailContent').innerHTML = temp ? temp.content : `<p>${esc(item.campaign.description)}</p>`;
+        document.getElementById('feedback').classList.add('d-none');
+        var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('emailModal'));
+        m.show();
+    }
+
+async function getTemplate(tid){
+        if(!tid) return null;
+        try{
+            const temps = await apiFetch('/api/templates');
+            return temps.find(t=>t.template_id===tid) || null;
+        }catch(e){ return null; }
+    }
+
+    async function reportPhish(){
+        if(!CURRENT) return;
+        try{
+            const r = await apiFetch('/api/user/simulations/'+CURRENT.campaign.campaign_id+'/action', {method:'POST', body:JSON.stringify({action:'reported'})});
+            showFeedback('correct','You correctly identified this as a phishing email! 👏','phishing');
+            bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
+            loadSimulations();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    async function simulateClick(){
+        if(!CURRENT) return;
+        try{
+            const r = await apiFetch('/api/user/simulations/'+CURRENT.campaign.campaign_id+'/action', {method:'POST', body:JSON.stringify({action:'link_clicked'})});
+            showFeedback('wrong','This was a phishing simulation. You clicked the link — be cautious next time!', 'anti-phishing');
+            bootstrap.Modal.getInstance(document.getElementById('emailModal')).hide();
+            loadSimulations();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+function showFeedback(type, msg, lesson){
+        const fb = document.getElementById('feedback');
+        fb.style.cssText = 'border-radius:10px;';
+        fb.style.background = type==='correct' ? 'rgba(46,213,115,.12)' : 'rgba(255,107,107,.12)';
+        fb.style.border = '1px solid '+(type==='correct'?'var(--success)':'var(--danger)');
+        fb.innerHTML = `<strong>${msg}</strong><div class="small mt-1">Learning: ${lesson}</div>`;
+        fb.classList.remove('d-none');
+    }
+
+    loadSimulations().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

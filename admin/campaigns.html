@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="bi bi-bullseye" style="color:#00ffb4"></i>Phishing Simulation Campaigns</h3>
+                <div class="card-header-actions">
+                    <button class="btn-cyber" data-bs-toggle="modal" data-bs-target="#campaignModal" onclick="openAddCampaign()">
+                        <i class="bi bi-plus-circle"></i>New Campaign
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Campaign Name</th>
+                            <th>Scenario</th>
+                            <th>Status</th>
+                            <th>Scheduled</th>
+                            <th>Created</th>
+                            <th class="cell-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="campaignBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campaign Modal -->
+<div class="modal fade" id="campaignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="campaignModalTitle">Create Campaign</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="campaignId">
+                <div class="mb-3">
+                    <label class="form-label">Campaign Title</label>
+                    <input class="form-control" id="cTitle" placeholder="Q2 Phishing Simulation">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="cDesc" rows="2" placeholder="Brief description of the test"></textarea>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Phishing Scenario</label>
+                        <select class="form-select" id="cScenario">
+                            <option>Fake password expiry notification</option>
+                            <option>Fake account verification email</option>
+                            <option>Fake security alert message</option>
+                            <option>Fake reward notification</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email Template</label>
+                        <select class="form-select" id="cTemplate"></select>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label">Schedule Date</label>
+                        <input type="date" class="form-control" id="cSchedule">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="cStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="scheduled">Scheduled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline-cyber" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn-cyber" onclick="saveCampaign()"><i class="bi bi-check-circle me-1"></i>Save Campaign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/admin.js"></script>
+<script>
+    initSidebar('campaigns');
+    initTopbar();
+    setPageTitle('Campaign Management','Create & schedule phishing simulations');
+
+    let TEMPLATES = [];
+
+    async function loadTemplates(){
+        TEMPLATES = await apiFetch('/api/admin/templates');
+        const sel = document.getElementById('cTemplate');
+        sel.innerHTML = TEMPLATES.map(t=>`<option value="${t.template_id}">${esc(t.name)}</option>`).join('');
+    }
+
+    function statusBadge(s){
+        const map = {active:'status-active', inactive:'status-inactive', scheduled:'status-scheduled'};
+        return `<span class="badge-risk ${map[s]||'status-pending'}">${esc(s)}</span>`;
+    }
+
+    async function loadCampaigns(){
+        const camps = await apiFetch('/api/admin/campaigns');
+        const tbody = document.getElementById('campaignBody');
+        if(!camps.length){
+            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-bullseye"></i>No campaigns yet</div></td></tr>`;
+            return;
+        }
+tbody.innerHTML = camps.map(c=>`
+            <tr>
+<td><div style="color:#FFFFFF;font-weight:600">${esc(c.title)}</div><div class="small text-muted">${esc(c.description||'')}</div></td>
+                <td>${esc(c.scenario||'—')}</td>
+                <td class="cell-center">${statusBadge(c.status)}</td>
+                <td class="text-muted">${esc(c.scheduled_date||'—')}</td>
+                <td class="text-muted">${(c.date_created||'').slice(0,10)}</td>
+                <td class="cell-center">
+                    <div class="action-group">
+                        <button class="btn-icon edit" onclick='openEditCampaign(${JSON.stringify(c).replace(/'/g,"\\'")})' title="Edit"><i class="bi bi-pencil"></i></button>
+                        <button class="btn-icon del" onclick="deleteCampaign(${c.campaign_id})" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openAddCampaign(){
+        document.getElementById('campaignModalTitle').textContent = 'Create Campaign';
+        document.getElementById('campaignId').value='';
+        document.getElementById('cTitle').value='';
+        document.getElementById('cDesc').value='';
+        document.getElementById('cScenario').selectedIndex=0;
+        document.getElementById('cSchedule').value='';
+        document.getElementById('cStatus').value='active';
+    }
+
+    function openEditCampaign(c){
+        document.getElementById('campaignModalTitle').textContent = 'Edit Campaign';
+        document.getElementById('campaignId').value = c.campaign_id;
+        document.getElementById('cTitle').value = c.title;
+        document.getElementById('cDesc').value = c.description||'';
+        document.getElementById('cScenario').value = c.scenario||'Fake password expiry notification';
+        document.getElementById('cTemplate').value = c.template_id||'';
+        document.getElementById('cSchedule').value = c.scheduled_date||'';
+        document.getElementById('cStatus').value = c.status||'active';
+        var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('campaignModal'));
+        m.show();
+    }
+
+    async function saveCampaign(){
+        const id = document.getElementById('campaignId').value;
+        const payload = {
+            title:document.getElementById('cTitle').value,
+            description:document.getElementById('cDesc').value,
+            scenario:document.getElementById('cScenario').value,
+            template_id:document.getElementById('cTemplate').value || null,
+            scheduled_date:document.getElementById('cSchedule').value || null,
+            status:document.getElementById('cStatus').value
+        };
+        try{
+            if(id){
+                await apiFetch('/api/admin/campaigns/'+id, {method:'PUT', body:JSON.stringify(payload)});
+                toast('Campaign updated');
+            }else{
+                await apiFetch('/api/admin/campaigns', {method:'POST', body:JSON.stringify(payload)});
+                toast('Campaign created');
+            }
+            bootstrap.Modal.getInstance(document.getElementById('campaignModal')).hide();
+            loadCampaigns();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    async function deleteCampaign(id){
+        if(!confirm('Delete this campaign?')) return;
+        try{
+            await apiFetch('/api/admin/campaigns/'+id, {method:'DELETE'});
+            toast('Campaign deleted');
+            loadCampaigns();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    Promise.all([loadTemplates(), loadCampaigns()]).catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

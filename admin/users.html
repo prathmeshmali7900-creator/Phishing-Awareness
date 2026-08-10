@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="bi bi-people" style="color:#00b4ff"></i>Registered Users</h3>
+                <div class="card-header-actions">
+                    <button class="btn-outline-cyber" onclick="document.getElementById('csvFile').click()">
+                        <i class="bi bi-file-earmark-arrow-up"></i>Import CSV
+                    </button>
+                    <input type="file" id="csvFile" class="d-none" accept=".csv" onchange="importCSV(this)">
+                    <button class="btn-cyber" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openAddUser()">
+                        <i class="bi bi-person-plus"></i>Add User
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="table align-middle" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Department</th>
+                            <th>Awareness Score</th>
+                            <th>Risk Level</th>
+                            <th>Role</th>
+                            <th>Registered</th>
+                            <th class="cell-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalTitle">Add User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="userId">
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input class="form-control" id="uName" placeholder="Jane Doe">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input class="form-control" id="uEmail" placeholder="jane@example.com">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Department / Class</label>
+                    <input class="form-control" id="uDept" placeholder="Engineering">
+                </div>
+                <div class="row g-2">
+                    <div class="col-6 mb-3">
+                        <label class="form-label">Awareness Score</label>
+                        <input type="number" class="form-control" id="uScore" value="0" min="0" max="100">
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label">Risk Level</label>
+                        <select class="form-select" id="uRisk">
+                            <option>Low</option>
+                            <option selected>Medium</option>
+                            <option>High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3" id="passwordDiv">
+                    <label class="form-label">Password</label>
+                    <input class="form-control" id="uPassword" placeholder="password123">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline-cyber" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn-cyber" onclick="saveUser()"><i class="bi bi-check-circle me-1"></i>Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/admin.js"></script>
+<script>
+    initSidebar('users');
+    initTopbar();
+    setPageTitle('User Management','Manage users, roles & access');
+
+    async function loadUsers(){
+        const users = await apiFetch('/api/admin/users');
+        const tbody = document.querySelector('#usersTable tbody');
+        if(!users.length){
+            tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="bi bi-people"></i>No users yet. Add your first user.</div></td></tr>`;
+            return;
+        }
+tbody.innerHTML = users.map(u=>`
+            <tr>
+                <td>
+                    <div class="user-cell">
+                        <div class="avatar ${u.user_id%2?'blue':''}">${esc(u.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</div>
+                        <div>
+                            <div class="user-name">${esc(u.name)}</div>
+                            <div class="user-email">${esc(u.email)}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>${esc(u.department||'—')}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="progress flex-grow-1" style="width:80px"><div class="progress-bar" style="width:${u.awareness_score}%"></div></div>
+                        <strong>${u.awareness_score}%</strong>
+                    </div>
+                </td>
+                <td class="cell-center">${riskBadge(u.risk_level)}</td>
+                <td class="cell-center"><span class="badge-risk status-active">User</span></td>
+                <td class="text-muted">${(u.created_at||'').slice(0,10)}</td>
+                <td class="cell-center">
+                    <div class="action-group">
+                        <button class="btn-icon edit" onclick='openEditUser(${JSON.stringify(u).replace(/'/g,"\\'")})' title="Edit"><i class="bi bi-pencil"></i></button>
+                        <button class="btn-icon del" onclick="deleteUser(${u.user_id})" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openAddUser(){
+        document.getElementById('userModalTitle').textContent = 'Add User';
+        ['uName','uEmail','uDept','uPassword'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('uScore').value = 0;
+        document.getElementById('uRisk').value = 'Medium';
+        document.getElementById('userId').value = '';
+        document.getElementById('passwordDiv').style.display = '';
+    }
+
+    function openEditUser(u){
+        document.getElementById('userModalTitle').textContent = 'Edit User';
+        document.getElementById('userId').value = u.user_id;
+        document.getElementById('uName').value = u.name;
+        document.getElementById('uEmail').value = u.email;
+        document.getElementById('uDept').value = u.department||'';
+        document.getElementById('uScore').value = u.awareness_score;
+        document.getElementById('uRisk').value = u.risk_level;
+        document.getElementById('passwordDiv').style.display = 'none';
+        var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal'));
+        m.show();
+    }
+
+    async function saveUser(){
+        const id = document.getElementById('userId').value;
+        const payload = {
+            name:document.getElementById('uName').value,
+            department:document.getElementById('uDept').value,
+            awareness_score:parseInt(document.getElementById('uScore').value)||0,
+            risk_level:document.getElementById('uRisk').value,
+        };
+        try{
+            if(id){
+                await apiFetch('/api/admin/users/'+id, {method:'PUT', body:JSON.stringify(payload)});
+                toast('User updated');
+            }else{
+                payload.email = document.getElementById('uEmail').value;
+                payload.password = document.getElementById('uPassword').value || 'password123';
+                await apiFetch('/api/admin/users', {method:'POST', body:JSON.stringify(payload)});
+                toast('User added');
+            }
+            bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+            loadUsers();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    async function deleteUser(id){
+        if(!confirm('Delete this user?')) return;
+        try{
+            await apiFetch('/api/admin/users/'+id, {method:'DELETE'});
+            toast('User deleted');
+            loadUsers();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    async function importCSV(input){
+        const file = input.files[0];
+        if(!file) return;
+        const fd = new FormData();
+        fd.append('file', file);
+        try{
+            const res = await fetch('/api/admin/users/import', {method:'POST', headers:{'Authorization':'Bearer '+getToken()}, body:fd});
+            const data = await res.json();
+            toast(data.message||'CSV imported');
+            input.value='';
+            loadUsers();
+        }catch(e){ toast(e.message||'Import failed','danger'); }
+    }
+
+    loadUsers().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Response Monitoring</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <div class="grid grid-4" id="respStats"></div>
+
+        <div class="card" style="margin-top:18px;">
+            <div class="card-header">
+                <h3><i class="bi bi-activity me-2" style="color:#00ffb4"></i>Real-Time Response Statistics</h3>
+                <span class="badge-soft"><i class="bi bi-dot me-1"></i>Live</span>
+            </div>
+            <div class="table-wrap">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Campaign</th>
+                            <th>Email Opened</th>
+                            <th>Link Clicked</th>
+                            <th>Reported</th>
+                            <th>Page Visited</th>
+                            <th>Quiz</th>
+                            <th>Score</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="respBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Activity timeline -->
+        <div class="card" style="margin-top:18px;">
+            <div class="card-header">
+                <h3><i class="bi bi-clock-history me-2" style="color:#ab66ff"></i>User Activity Timeline</h3>
+            </div>
+            <div id="timeline"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/admin.js"></script>
+<script>
+    initSidebar('responses');
+    initTopbar();
+    setPageTitle('Response Monitoring','Track user interaction with simulations');
+
+    function boolBadge(v, yes, no){
+        return v ? `<span class="badge-risk ${yes}"><i class="bi bi-check-lg me-1"></i>Yes</span>`
+                 : `<span class="badge-risk ${no}">No</span>`;
+    }
+
+    function scoreColor(s){
+        if(s >= 70) return 'risk-low';
+        if(s >= 40) return 'risk-medium';
+        return 'risk-high';
+    }
+
+    async function loadResponses(){
+        const data = await apiFetch('/api/admin/responses');
+        // Stats
+        const opened = data.filter(r=>r.email_opened).length;
+        const clicked = data.filter(r=>r.link_clicked).length;
+        const reported = data.filter(r=>r.reported).length;
+        const completed = data.filter(r=>r.quiz_completed).length;
+
+        const stats = [
+            {icon:'blue', bi:'bi-envelope-open', value:opened, label:'Emails Opened'},
+            {icon:'orange', bi:'bi-cursor', value:clicked, label:'Links Clicked'},
+            {icon:'green', bi:'bi-flag', value:reported, label:'Reported'},
+            {icon:'purple', bi:'bi-journal-check', value:completed, label:'Quiz Completed'},
+        ];
+        document.getElementById('respStats').innerHTML = stats.map(s=>`
+            <div class="card stat-card">
+                <div class="icon ${s.icon}"><i class="bi ${s.bi}"></i></div>
+                <div class="value">${s.value}</div>
+                <div class="label">${s.label}</div>
+            </div>
+        `).join('');
+
+        // Table
+        const tbody = document.getElementById('respBody');
+        if(!data.length){
+            tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="bi bi-activity"></i>No responses yet</div></td></tr>`;
+        }else{
+            tbody.innerHTML = data.map(r=>`
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar">${esc(r.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</div>
+                            <div>
+<div style="color:#FFFFFF;font-weight:600">${esc(r.name)}</div>
+                                <div class="small text-muted">${esc(r.email)}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-muted">${esc(r.campaign_title)}</td>
+                    <td>${boolBadge(r.email_opened,'status-active','status-inactive')}</td>
+                    <td>${boolBadge(r.link_clicked,'risk-high','status-inactive')}</td>
+                    <td>${boolBadge(r.reported,'risk-low','status-inactive')}</td>
+                    <td>${boolBadge(r.page_visited,'status-scheduled','status-inactive')}</td>
+                    <td>${boolBadge(r.quiz_completed,'status-active','status-inactive')}</td>
+                    <td><span class="badge-risk ${scoreColor(r.score)}">${r.score}%</span></td>
+                    <td class="text-muted small">${r.timestamp}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Timeline
+        const tl = document.getElementById('timeline');
+        const colors = {email_opened:'#00b4ff', link_clicked:'#ffc048', reported:'#2ed573', page_visited:'#ab66ff', quiz_completed:'#00ffb4'};
+        const labels = {email_opened:'Email opened', link_clicked:'Clicked phishing link', reported:'Reported phishing', page_visited:'Visited simulation page', quiz_completed:'Completed quiz'};
+        if(!data.length){ tl.innerHTML = `<div class="empty-state"><i class="bi bi-clock-history"></i>No activity recorded</div>`; return; }
+        tl.innerHTML = data.slice(0,15).map(r=>`
+            <div class="activity-item">
+                <span class="activity-dot" style="background:${colors[r.action]||'#3a4b66'}"></span>
+                <div class="flex-grow-1">
+                    <div><strong>${esc(r.name)}</strong> — ${labels[r.action]||r.action}</div>
+                    <div class="activity-time">${r.timestamp}</div>
+                </div>
+                <span class="badge-risk ${scoreColor(r.score)}">${r.score}%</span>
+            </div>
+        `).join('');
+    }
+
+    loadResponses().catch(e=>toast(e.message,'danger'));
+    setInterval(()=>loadResponses().catch(()=>{}), 15000);
+</script>
+</body>
+</html>

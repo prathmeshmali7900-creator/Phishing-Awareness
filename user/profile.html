@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/user.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <div class="grid grid-2">
+            <div class="card" style="text-align:center;">
+                <div class="avatar-user mx-auto mb-3" style="width:80px;height:80px;font-size:1.8rem;" id="profileAvatar">U</div>
+                <h4 id="profileName">User</h4>
+                <p class="text-muted" id="profileEmail"></p>
+                <div id="profileRisk" class="mb-3"></div>
+                <div class="d-flex justify-content-center gap-3">
+                    <div><div class="fw-bold" id="profileScore">0%</div><div class="text-muted small">Awareness</div></div>
+                    <div><div class="fw-bold" id="profileDept">—</div><div class="text-muted small">Department</div></div>
+                </div>
+            </div>
+
+            <div class="card">
+<div class="card-header"><h3><i class="bi bi-person-gear me-2" style="color:var(--primary2)"></i>Edit Profile</h3></div>
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input class="form-control" id="pName">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Department</label>
+                    <input class="form-control" id="pDept">
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-control" id="pPassword" placeholder="Leave blank to keep current">
+                </div>
+                <button class="btn-primary" onclick="saveProfile()"><i class="bi bi-check-circle me-1"></i>Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/user.js"></script>
+<script>
+    initSidebar('profile');
+    initTopbar();
+    setPageTitle('My Profile','Manage your account information');
+
+    async function loadProfile(){
+        const d = await apiFetch('/api/user/dashboard');
+        const user = d.user;
+        document.getElementById('profileAvatar').textContent = user.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+        document.getElementById('profileName').textContent = user.name;
+        document.getElementById('profileEmail').textContent = user.email;
+        document.getElementById('profileRisk').innerHTML = riskBadge(user.risk_level);
+        document.getElementById('profileScore').textContent = user.awareness_score+'%';
+        document.getElementById('profileDept').textContent = user.department||'—';
+        document.getElementById('pName').value = user.name;
+        document.getElementById('pDept').value = user.department||'';
+    }
+
+    async function saveProfile(){
+        const payload = {
+            name:document.getElementById('pName').value,
+            department:document.getElementById('pDept').value,
+        };
+        const pw = document.getElementById('pPassword').value;
+        if(pw) payload.password = pw;
+        try{
+            await apiFetch('/api/user/profile', {method:'PUT', body:JSON.stringify(payload)});
+            localStorage.setItem('name', payload.name);
+            toast('Profile updated successfully');
+            loadProfile();
+            document.getElementById('pPassword').value='';
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    loadProfile().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

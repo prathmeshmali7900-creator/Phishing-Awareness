@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Awareness Analytics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+        <div class="grid grid-3" id="analyticsCards"></div>
+
+        <div class="grid grid-2" style="margin-top:18px;">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="bi bi-building me-2" style="color:#00b4ff"></i>Department-wise Comparison</h3>
+                </div>
+                <div class="chart-box"><canvas id="deptChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="bi bi-pie-chart me-2" style="color:#ffc048"></i>Risk Classification</h3>
+                </div>
+                <div class="chart-box"><canvas id="riskChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+            <div class="card-header">
+                <h3><i class="bi bi-trophy me-2" style="color:#00ffb4"></i>User Awareness Leaderboard</h3>
+            </div>
+            <div class="table-wrap">
+                <table class="table align-middle">
+                    <thead><tr><th>#</th><th>User</th><th>Awareness Score</th><th>Risk Level</th></tr></thead>
+                    <tbody id="leaderboard"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="assets/js/admin.js"></script>
+<script>
+    initSidebar('analytics');
+    initTopbar();
+    setPageTitle('Awareness Analytics','Phishing detection & risk analysis');
+
+    async function loadAnalytics(){
+        const d = await apiFetch('/api/admin/analytics');
+
+        // Cards
+        const risk = d.risk_distribution||{};
+        const cards = [
+            {icon:'green', bi:'bi-shield-check', value:d.detection_pct+'%', label:'Phishing Detection Rate'},
+            {icon:'orange', bi:'bi-exclamation-triangle', value:risk.high||0, label:'High-Risk Users'},
+            {icon:'blue', bi:'bi-people', value:(risk.low||0)+(risk.medium||0)+(risk.high||0), label:'Total Users Analyzed'},
+        ];
+        document.getElementById('analyticsCards').innerHTML = cards.map(c=>`
+            <div class="card stat-card">
+                <div class="icon ${c.icon}"><i class="bi ${c.bi}"></i></div>
+                <div class="value">${c.value}</div>
+                <div class="label">${c.label}</div>
+            </div>
+        `).join('');
+
+        // Dept chart
+        new Chart(document.getElementById('deptChart'), {
+            type:'bar',
+            data:{
+                labels: d.department.map(x=>x.department),
+                datasets:[{
+                    label:'Avg Awareness Score', data:d.department.map(x=>x.avg_score),
+                    backgroundColor:'rgba(0,180,255,.6)', borderColor:'#00b4ff', borderWidth:2, borderRadius:8
+                }]
+            },
+            options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#8aa0b6'}}},
+                scales:{x:{ticks:{color:'#8aa0b6'},grid:{color:'rgba(30,45,68,.4)'}},y:{ticks:{color:'#8aa0b6'},grid:{color:'rgba(30,45,68,.4)'}}}}
+        });
+
+        // Risk chart
+        new Chart(document.getElementById('riskChart'), {
+            type:'pie',
+            data:{labels:['Low','Medium','High'], datasets:[{data:[risk.low,risk.medium,risk.high], backgroundColor:['#2ed573','#ffc048','#ff6b6b'], borderColor:'#131c2d', borderWidth:3}]},
+            options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{color:'#8aa0b6'}}}}
+        });
+
+        // Leaderboard
+        const lb = document.getElementById('leaderboard');
+        lb.innerHTML = d.users.map((u,i)=>`
+            <tr>
+                <td><span class="badge-risk ${i<3?'status-scheduled':'status-inactive'}">${i+1}</span></td>
+<td style="color:#FFFFFF;font-weight:600">${esc(u.name)}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="progress flex-grow-1" style="width:120px"><div class="progress-bar" style="width:${u.awareness_score}%"></div></div>
+                        <strong>${u.awareness_score}%</strong>
+                    </div>
+                </td>
+                <td>${riskBadge(u.risk_level)}</td>
+            </tr>
+        `).join('');
+    }
+
+    loadAnalytics().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

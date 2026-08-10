@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detection Quiz</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/user.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+<div class="card mb-4" style="background:linear-gradient(135deg,#0f1a28,#0c1422);border:1px solid var(--border);color:var(--text);">
+            <h4><i class="bi bi-patch-question me-2" style="color:var(--primary2)"></i>Phishing Detection Quiz</h4>
+            <p class="mb-0 text-muted small">Test your knowledge with scenario-based questions on phishing detection.</p>
+        </div>
+
+        <div class="card" id="quizCard">
+            <div id="quizProgress" class="mb-3">
+                <div class="d-flex justify-content-between mb-1 small text-muted">
+                    <span>Question <span id="qNum">1</span> of <span id="qTotal">8</span></span>
+                    <span id="qScore">Score: 0</span>
+                </div>
+                <div class="progress"><div class="progress-bar" id="qBar" style="width:12%"></div></div>
+            </div>
+
+            <div id="quizBody"></div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <button class="btn-outline" id="prevBtn" onclick="prevQuestion()"><i class="bi bi-arrow-left me-1"></i>Previous</button>
+                <button class="btn-primary" id="nextBtn" onclick="nextQuestion()">Next <i class="bi bi-arrow-right ms-1"></i></button>
+            </div>
+        </div>
+
+        <!-- Result modal -->
+        <div class="modal fade" id="resultModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog">
+<div class="modal-content" style="border-radius:16px;border:1px solid var(--border);text-align:center;">
+                    <div class="modal-body p-4">
+                        <div style="font-size:3rem;margin-bottom:10px;" id="resultEmoji">🏆</div>
+                        <h3 id="resultTitle">Quiz Complete!</h3>
+                        <div class="display-4 fw-bold my-3" id="resultScore" style="color:var(--primary);">0%</div>
+                        <p class="text-muted" id="resultMsg"></p>
+                        <div class="d-flex gap-2 justify-content-center mt-3">
+                            <button class="btn-outline" onclick="location.reload()">Retake Quiz</button>
+                            <button class="btn-primary" onclick="location.href='dashboard.html'">Back to Dashboard</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/user.js"></script>
+<script>
+    initSidebar('quiz');
+    initTopbar();
+    setPageTitle('Phishing Detection Quiz','Scenario-based security assessment');
+
+let QUESTIONS = [];
+    let current = 0;
+    let answers = []; // {question_id, chosen}
+    let submitted = false;
+    let scoreCount = 0;
+
+    async function loadQuiz(){
+        QUESTIONS = await apiFetch('/api/quiz');
+        if(!QUESTIONS.length){
+            document.getElementById('quizBody').innerHTML = `<div class="empty-state"><i class="bi bi-patch-question"></i>No quiz questions available.</div>`;
+            return;
+        }
+        document.getElementById('qTotal').textContent = QUESTIONS.length;
+        renderQuestion();
+    }
+
+    function renderQuestion(){
+        const q = QUESTIONS[current];
+        const opts = JSON.parse(q.options || '[]');
+        const chosen = answers.find(a=>a.question_id===q.question_id);
+        document.getElementById('qNum').textContent = current+1;
+        document.getElementById('qBar').style.width = ((current+1)/QUESTIONS.length*100)+'%';
+        document.getElementById('qScore').textContent = 'Score: '+scoreCount;
+
+        if(submitted){
+            // Show correct answers & explanation
+            const isCorrect = chosen && chosen.chosen === q.correct_index;
+            document.getElementById('quizBody').innerHTML = `
+                <h5 class="mb-3">${esc(q.question)}</h5>
+                <div class="mb-3">
+                    ${opts.map((o,i)=>{
+                        let cls = 'quiz-option';
+                        if(i === q.correct_index) cls += ' correct';
+                        else if(chosen && chosen.chosen===i) cls += ' wrong';
+                        else cls += ' opacity-50';
+                        return `<button class="${cls}" disabled>
+                            <span class="me-2">${String.fromCharCode(65+i)}.</span> ${esc(o)}
+                            ${i===q.correct_index?'<i class="bi bi-check-circle-fill text-success ms-1"></i>':''}
+                            ${chosen && chosen.chosen===i && i!==q.correct_index?'<i class="bi bi-x-circle-fill text-danger ms-1"></i>':''}
+                        </button>`;
+                    }).join('')}
+                </div>
+                ${q.explanation ? `
+<div class="alert alert-info py-2" style="border-radius:10px;font-size:.85rem;background:rgba(0,180,255,.08);border:1px solid rgba(0,180,255,.2);color:var(--primary2);">
+                    <i class="bi bi-lightbulb me-1"></i><strong>Explanation:</strong> ${esc(q.explanation)}
+                </div>` : ''}
+            `;
+            document.getElementById('prevBtn').innerHTML = '<i class="bi bi-arrow-left me-1"></i>Previous';
+            document.getElementById('nextBtn').innerHTML = 'Restart <i class="bi bi-arrow-counterclockwise ms-1"></i>';
+            document.getElementById('nextBtn').onclick = restartQuiz;
+        }else{
+            document.getElementById('quizBody').innerHTML = `
+                <h5 class="mb-3">${esc(q.question)}</h5>
+                <div>
+                    ${opts.map((o,i)=>`
+                        <button class="quiz-option ${chosen && chosen.chosen===i ? 'selected':''}" onclick="selectAnswer(${i})">
+                            <span class="me-2">${String.fromCharCode(65+i)}.</span> ${esc(o)}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('prevBtn').innerHTML = '<i class="bi bi-arrow-left me-1"></i>Previous';
+            document.getElementById('nextBtn').innerHTML = current===QUESTIONS.length-1
+                ? 'Submit <i class="bi bi-check-circle ms-1"></i>' : 'Next <i class="bi bi-arrow-right ms-1"></i>';
+            document.getElementById('nextBtn').onclick = nextQuestion;
+        }
+        document.getElementById('prevBtn').disabled = current===0;
+    }
+
+    function selectAnswer(idx){
+        const q = QUESTIONS[current];
+        const existing = answers.find(a=>a.question_id===q.question_id);
+        if(existing) existing.chosen = idx;
+        else answers.push({question_id:q.question_id, chosen:idx});
+        renderQuestion();
+    }
+
+    function prevQuestion(){
+        if(current>0){ current--; renderQuestion(); }
+    }
+
+    function nextQuestion(){
+        const q = QUESTIONS[current];
+        const hasAnswer = answers.find(a=>a.question_id===q.question_id);
+        if(!hasAnswer){ toast('Please select an answer','warning'); return; }
+        if(current < QUESTIONS.length-1){ current++; renderQuestion(); }
+        else submitQuiz();
+    }
+
+    async function submitQuiz(){
+        try{
+            const r = await apiFetch('/api/quiz/submit', {method:'POST', body:JSON.stringify({answers})});
+            const pct = r.score;
+            scoreCount = r.correct;
+            submitted = true;
+            current = 0;
+            renderQuestion();
+            document.getElementById('resultScore').textContent = pct+'%';
+            document.getElementById('resultEmoji').textContent = pct>=80?'🏆':(pct>=50?'👍':'📚');
+            document.getElementById('resultTitle').textContent = pct>=80?'Excellent!' : (pct>=50?'Good effort':'Keep learning');
+            document.getElementById('resultMsg').textContent = `You answered ${r.correct} of ${r.total} correctly.`;
+            var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('resultModal'));
+            m.show();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    function restartQuiz(){
+        submitted = false;
+        current = 0;
+        answers = [];
+        scoreCount = 0;
+        renderQuestion();
+        document.getElementById('resultModal').classList.remove('show');
+        document.querySelector('.modal-backdrop').remove();
+        toast('Quiz restarted. Good luck!','info');
+    }
+
+    loadQuiz().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>

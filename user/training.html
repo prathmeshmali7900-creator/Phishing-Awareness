@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Awareness Training</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/user.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+        <div class="topbar" id="topbar"></div>
+
+<div class="card mb-4" style="background:linear-gradient(135deg,#0f1a28,#0c1422);border:1px solid var(--border);color:var(--text);">
+            <h4><i class="bi bi-book me-2" style="color:var(--primary2)"></i>Awareness Training Modules</h4>
+            <p class="mb-0 text-muted small">Complete these lessons to strengthen your phishing detection skills.</p>
+        </div>
+
+        <div class="grid grid-2" id="trainingList"></div>
+    </div>
+</div>
+
+<!-- Lesson modal -->
+<div class="modal fade" id="lessonModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+<div class="modal-content" style="border-radius:16px;border:1px solid var(--border);">
+            <div class="modal-header">
+                <h5 class="modal-title" id="lessonTitle"></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+<div class="modal-body">
+                <span class="badge-risk status-scheduled mb-3" id="lessonCategory"></span>
+                <p id="lessonContent" style="line-height:1.8;color:var(--text);"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" data-bs-dismiss="modal">Close</button>
+                <button class="btn-primary" id="lessonCompleteBtn" onclick="markCompleteFromModal()"><i class="bi bi-check-lg me-1"></i>Mark as Complete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/user.js"></script>
+<script>
+    initSidebar('training');
+    initTopbar();
+    setPageTitle('Awareness Training','Learn to identify phishing attacks');
+
+    const ICONS = {
+        'Awareness':'bi-eye',
+        'Detection':'bi-search',
+        'Security':'bi-shield-lock',
+        'Default':'bi-book'
+    };
+
+function openLesson(id){
+        // fetch from already loaded data
+        const lesson = window._lessons.find(x=>x.training_id===id);
+        if(!lesson) return;
+        window._currentLesson = lesson;
+        document.getElementById('lessonTitle').textContent = lesson.title;
+        document.getElementById('lessonCategory').textContent = lesson.category;
+        document.getElementById('lessonContent').textContent = lesson.content;
+        const btn = document.getElementById('lessonCompleteBtn');
+        if(lesson.completed){
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Completed ✅';
+        }else{
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Mark as Complete';
+        }
+        var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('lessonModal'));
+        m.show();
+    }
+
+    async function markCompleteFromModal(){
+        if(!window._currentLesson) return;
+        try{
+            await apiFetch('/api/training/'+window._currentLesson.training_id+'/complete', {method:'POST'});
+            toast('Lesson marked as complete! ✅','success');
+            bootstrap.Modal.getInstance(document.getElementById('lessonModal')).hide();
+            loadAll();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+async function loadAll(){
+        const data = await apiFetch('/api/training');
+        window._lessons = data;
+        const list = document.getElementById('trainingList');
+        if(!data.length){
+list.innerHTML = `<div class="empty-state" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);"><i class="bi bi-book" style="font-size:3rem;display:block;margin-bottom:12px"></i>No training modules yet.</div>`;
+            return;
+        }
+        list.innerHTML = data.map(t=>`
+            <div class="lesson-item ${t.completed?'completed':''}" onclick="openLesson(${t.training_id})" style="cursor:pointer;">
+                <div class="lesson-icon"><i class="bi ${ICONS[t.category]||ICONS.Default}"></i></div>
+                <div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>${esc(t.title)}</strong>
+                        <span class="badge-risk ${t.completed?'risk-low':'status-scheduled'}" style="font-size:.65rem;">${t.completed?'Completed':esc(t.category)}</span>
+                    </div>
+                    <p class="mb-2 text-muted small mt-1">${esc(t.content).slice(0,120)}...</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn-outline btn-sm" onclick="event.stopPropagation();openLesson(${t.training_id})"><i class="bi bi-play-circle me-1"></i>Read Lesson</button>
+                        ${t.completed
+                            ? `<button class="btn-outline btn-sm" style="border-color:rgba(46,213,115,.4);color:var(--success);" onclick="event.stopPropagation();toast('Lesson already completed','info')"><i class="bi bi-check-circle me-1"></i>Completed</button>`
+                            : `<button class="btn-primary btn-sm" onclick="event.stopPropagation();markComplete(${t.training_id})"><i class="bi bi-check-lg me-1"></i>Mark Complete</button>`}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function markComplete(id){
+        try{
+            await apiFetch('/api/training/'+id+'/complete', {method:'POST'});
+            toast('Lesson marked as complete! ✅','success');
+            loadAll();
+        }catch(e){ toast(e.message,'danger'); }
+    }
+
+    loadAll().catch(e=>toast(e.message,'danger'));
+</script>
+</body>
+</html>
